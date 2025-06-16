@@ -48,6 +48,7 @@ module atm_core
       use mpas_attlist, only : mpas_modify_att
       use mpas_string_utils, only : mpas_string_replace
       use mpas_atm_halos, only: atm_build_halo_groups, exchange_halo_group
+      use mpas_stochastic_physics, only : stochastic_physics_pattern_init
 
       implicit none
 
@@ -294,6 +295,9 @@ module atm_core
       ! Prepare the dynamics for integration
       !
       call mpas_atm_dynamics_init(domain)
+      !
+      ! init stochastic pattern generation
+      call stochastic_physics_pattern_init (domain, ierr)
 
    end function atm_core_init
 
@@ -987,7 +991,8 @@ module atm_core
       use mpas_atmphys_update
 #endif
       use mpas_atm_halos, only: exchange_halo_group
-   
+      use mpas_stochastic_physics, only : stochastic_physics_pattern_adv  
+ 
       implicit none
    
       type (domain_type), intent(inout) :: domain 
@@ -1019,6 +1024,7 @@ module atm_core
       endif
 #endif
 
+      call stochastic_physics_pattern_adv(domain, itimestep, ierr)
       call atm_timestep(domain, dt, currTime, itimestep, exchange_halo_group)
 
    end subroutine atm_do_timestep
