@@ -1,4 +1,3 @@
 [submodule "src/core_atmosphere/stochastic_physics"]
 	path = src/core_atmosphere/stochastic_physics
-	url = https://github.com/dtcenter/stochastic_physics.git
-	branch = DTC_MPAS
+	url = https://github.com/ihan-chen/stochastic_physics.git
