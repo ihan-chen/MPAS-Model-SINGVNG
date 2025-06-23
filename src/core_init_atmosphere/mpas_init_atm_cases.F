@@ -3161,7 +3161,7 @@ module init_atm_cases
       kz = nz
       if (hybrid) then
       
-         zh = 30000.0
+         zh = 20000.0
 !         zh = 0.5*zt
 
          do k=1,nz
