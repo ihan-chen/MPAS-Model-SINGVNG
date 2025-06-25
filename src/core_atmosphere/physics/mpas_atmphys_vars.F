@@ -351,7 +351,7 @@
     rvcuten_p          !
 
 !... grell-freitas specific parameters and arrays:
-    integer, parameter:: ishallow  = 1 !shallow convection used with grell scheme.
+    integer, parameter:: ishallow  = 0 !shallow convection used with grell scheme.
 
  integer,dimension(:,:),allocatable:: &
     k22_shallow_p,    &!
