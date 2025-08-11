@@ -773,7 +773,6 @@
  logical,pointer:: config_do_DAcycling, &
                    config_do_restart,   &
                    bl_mynn_tkeadvect
- integer, pointer :: config_do_spppbl
 
  character(len=StrKIND),pointer:: pbl_scheme
 
@@ -870,7 +869,6 @@
        call mpas_pool_get_config(configs,'config_mynn_mixqt'      ,bl_mynn_mixqt      )
        call mpas_pool_get_config(configs,'config_mynn_tkeadvect'  ,bl_mynn_tkeadvect  )
        call mpas_pool_get_config(configs,'config_mynn_tkebudget'  ,bl_mynn_tkebudget  )
-       call mpas_pool_get_config(configs, 'do_spppbl', config_do_spppbl)
 
 !      call mpas_log_write(' ')
 !      call mpas_log_write('--- enter subroutine mynn_bl_driver:')
@@ -933,7 +931,7 @@
                   det_sqv    = detqv_p      , exch_h     = kzh_p        , exch_m      = kzm_p           , &
                   qke        = qke_p        , qwt        = qwt_p        , qshear      = qshear_p        , &
                   qbuoy      = qbuoy_p      , qdiss      = qdiss_p      , sh3d        = sh3d_p          , &
-                  sm3d       = sm3d_p       , spp_pbl    = config_do_spppbl , pattern_spp = pattern_spp_pbl , &
+                  sm3d       = sm3d_p       , spp_pbl    = spp_pbl      , pattern_spp = pattern_spp_pbl , &
                   do_restart         = config_do_restart   ,                                              &
                   do_DAcycling       = config_do_DAcycling ,                                              &
                   initflag           = initflag            ,                                              &
