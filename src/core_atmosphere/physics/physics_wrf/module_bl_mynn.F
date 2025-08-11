@@ -336,6 +336,11 @@
 
  dheat_opt = bl_mynn_dheat_opt
 
+if(spp_pbl == 1) then
+  write(0,*) "[MYNN] turn on SPP using SPPT pattern"
+ end if
+
+
  do j = jts,jte
 
     !--- input arguments
