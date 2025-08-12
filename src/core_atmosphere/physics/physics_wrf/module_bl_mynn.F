@@ -2,10 +2,11 @@
  module module_bl_mynn
  use mpas_kind_types,only: kind_phys => RKIND
  use mpas_log
-
+ use mpas_pool_routines
  use bl_mynn,only: bl_mynn_run
  use bl_mynn_post,only: bl_mynn_post_run
  use bl_mynn_pre,only: bl_mynn_pre_run
+
 
  implicit none
  private
@@ -152,7 +153,7 @@
     nbca
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: &
-    pattern_spp   !
+    pattern_spp  !
 
 
 !--- inout arguments:
@@ -335,10 +336,6 @@
  if(bl_mynn_topdown    == 1) mynn_topdown_l    = .true.
 
  dheat_opt = bl_mynn_dheat_opt
-
-if(spp_pbl == 1) then
-  write(0,*) "[MYNN] turn on SPP using SPPT pattern"
- end if
 
 
  do j = jts,jte

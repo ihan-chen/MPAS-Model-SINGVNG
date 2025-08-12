@@ -303,7 +303,7 @@
  end subroutine deallocate_pbl
 
 !=================================================================================================================
- subroutine pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
+ subroutine pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite,itimestep)
 !=================================================================================================================
 
 !input arguments:
@@ -312,7 +312,7 @@
  type(mpas_pool_type),intent(in):: diag_physics
  type(mpas_pool_type),intent(in):: sfc_input
  type(mpas_pool_type),intent(in):: tend_physics
-
+ integer,intent(in):: itimestep
  integer,intent(in):: its,ite
 
 !local variables:
@@ -337,7 +337,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
-
+ real(kind=RKIND),dimension(:,:),pointer:: stoch_pat
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -446,7 +446,8 @@
        call mpas_pool_get_array(diag_physics,'sub_qv'    ,sub_qv    )
        call mpas_pool_get_array(diag_physics,'det_thl'   ,det_thl   )
        call mpas_pool_get_array(diag_physics,'det_qv'    ,det_qv    )
-
+       call mpas_pool_get_array(tend_physics,'stoch_pattern',stoch_pat)  
+     
        do j = jts,jte
        do i = its,ite
           dx_p(i,j)   = len_disp / meshDensity(i)**0.25
@@ -493,8 +494,11 @@
           rniblten_p(i,k,j)   = 0._RKIND
           rnifablten_p(i,k,j) = 0._RKIND
           rnwfablten_p(i,k,j) = 0._RKIND
-
-          pattern_spp_pbl(i,k,j) = 0._RKIND
+          if (itimestep > 10) then
+           pattern_spp_pbl(i,k,j) =  stoch_pat(k,i)/10. ! read-in sppt pattern
+          else
+           pattern_spp_pbl(i,k,j) = 0._RKIND
+          end if
        enddo
        enddo
        do i = its,ite
@@ -815,7 +819,7 @@ integer, pointer :: config_do_spppbl
  call mpas_pool_get_config(configs,'config_pbl_scheme'  ,pbl_scheme         )
 
 !copy MPAS arrays to local arrays:
- call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
+ call pbl_from_MPAS(configs,mesh,sfc_input,diag_physics,tend_physics,its,ite,itimestep)
 
  initflag = 1
  if(config_do_restart .or. itimestep > 1) initflag = 0
@@ -955,7 +959,7 @@ integer, pointer :: config_do_spppbl
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,                 &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,                 &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,                 &
-                  errmsg = errmsg , errflg = errflg                                                       &
+                  errmsg = errmsg , errflg = errflg                                  &
                           )
        call mpas_timer_stop('bl_mynn')
 !      call mpas_log_write('--- exit subroutine mynn_bl_driver:')
