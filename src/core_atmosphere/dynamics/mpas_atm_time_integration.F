@@ -848,6 +848,7 @@ module atm_time_integration
 
       integer, pointer :: config_number_of_sub_steps
       integer, pointer :: config_time_integration_order
+      integer, pointer :: config_dosppt_apply
       logical, pointer :: config_scalar_advection
       logical, pointer :: config_positive_definite
       logical, pointer :: config_monotonic
@@ -903,6 +904,7 @@ module atm_time_integration
 #ifdef DO_PHYSICS
       call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
       call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
+      call mpas_pool_get_config(block % configs, 'config_dosppt_apply',config_dosppt_apply)
 #endif
 
       !
@@ -1088,7 +1090,10 @@ module atm_time_integration
       tend_names(2) = "rvcuten"
       tend_names(3) = "rublten"
       tend_names(4) = "rvblten"
-      call stochastic_physics_pattern_apply(domain, 4, tend_names, ierr)
+
+      if (config_dosppt_apply==1) then
+       call stochastic_physics_pattern_apply(domain, 4, tend_names, ierr)
+      end if
 
       call physics_get_tend( block, mesh, state, diag, tend, tend_physics, &
                              block % configs, rk_step, dynamics_substep, &
@@ -1099,7 +1104,10 @@ module atm_time_integration
 ! apply random perturbation pattern to the tendency
       tend_names(1) = "tend_rtheta_physics"
 !      tend_names(2) = "tend_rho_physics"
-      call stochastic_physics_pattern_apply(domain, 1, tend_names, ierr)
+
+      if (config_dosppt_apply==1) then
+       call stochastic_physics_pattern_apply(domain, 1, tend_names, ierr)
+      end if
 
 #else
 #ifndef MPAS_CAM_DYCORE

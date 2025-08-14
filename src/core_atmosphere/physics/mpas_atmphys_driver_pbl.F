@@ -446,7 +446,7 @@
        call mpas_pool_get_array(diag_physics,'sub_qv'    ,sub_qv    )
        call mpas_pool_get_array(diag_physics,'det_thl'   ,det_thl   )
        call mpas_pool_get_array(diag_physics,'det_qv'    ,det_qv    )
-       call mpas_pool_get_array(tend_physics,'stoch_pattern',stoch_pat)  
+       call mpas_pool_get_array(tend_physics,'stoch_pattern',stoch_pat) 
      
        do j = jts,jte
        do i = its,ite
@@ -495,7 +495,7 @@
           rnifablten_p(i,k,j) = 0._RKIND
           rnwfablten_p(i,k,j) = 0._RKIND
           if (itimestep > 10) then
-           pattern_spp_pbl(i,k,j) =  stoch_pat(k,i)/10. ! read-in sppt pattern
+           pattern_spp_pbl(i,k,j) =  stoch_pat(k,i) ! read-in sppt pattern
           else
            pattern_spp_pbl(i,k,j) = 0._RKIND
           end if
