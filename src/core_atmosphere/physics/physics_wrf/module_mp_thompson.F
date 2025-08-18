@@ -1006,6 +1006,7 @@
                               GRAUPELNC, GRAUPELNCV, SR,              &
                               rainprod, evapprod,                     &
                               refl_10cm, diagflag, do_radar_ref,      &
+                              spp_mp, pattern_spp_mp,minrand,         &
                               re_cloud, re_ice, re_snow,              &
                               has_reqc, has_reqi, has_reqs,           &
 #if defined(mpas)
@@ -1068,8 +1069,13 @@
       LOGICAL, OPTIONAL, INTENT(IN) :: diagflag
       INTEGER, OPTIONAL, INTENT(IN) :: do_radar_ref
 !     CHARACTER*256:: mp_debug
-
-!+---+
+!---------------------------------------------------
+      INTEGER :: m 
+      REAL, INTENT(IN) :: minrand
+      INTEGER, INTENT(IN) :: spp_mp
+      REAL, DIMENSION(ims:ime,kms:kme,jms:jme), INTENT(IN):: pattern_spp_mp
+      REAL:: rand1, rand2, rand3, rand4
+!+--------------------------------------------------+
 
       i_start = its
       j_start = jts
@@ -1128,6 +1134,43 @@
       j_loop:  do j = j_start, j_end
       i_loop:  do i = i_start, i_end
 
+ 
+!+---+-----------------------------------------------------------------+
+!..Introduce stochastic parameter perturbations by creating as many scalar rand1, rand2, ...
+!.. variables as needed to purturb different pieces of microphysics.  gthompsn  21Mar2018
+! Setting spp_mp to 1 gives graupel Y-intercept pertubations (2^0)
+!                   2 gives cloud water distribution gamma shape parameter perturbations (2^1)
+!                   4 gives CCN and IN activation perturbations (2^2)
+!                   8 gives TBD (2^3)
+!                   3 gives both 1+2
+!                   5 gives both 1+4
+!                   9 gives both 1+8
+!                   6 gives both 2+4
+!                  10 gives both 2+8
+!                  12 gives both 4+8
+!                   7 gives 1+2+4
+!                  11 gives 1+2+8
+!                  13 gives 1+4+8
+!                  14 gives 2+4+8
+!                  15 gives all 1+2+4+8
+! For now (10May2019), standard deviation should be only 0.5 and cut-off at 2.0
+! (4.0*stddev) in order to constrain the various perturbations from being too extreme.
+!+---+-----------------------------------------------------------------+
+         rand1 = 0.0
+         rand2 = 0.0
+         rand3 = 0.0
+         rand4 = 0.0
+         !print*,'sppmp, pattern_spp_mp value at ij= ', spp_mp, pattern_spp_mp(i,1,j)
+         if (spp_mp .ne. 0) then
+            if (MOD(spp_mp,2) .ne. 0) rand1 = pattern_spp_mp(i,1,j)
+            m = RSHIFT(ABS(spp_mp),1)
+            if (MOD(m,2) .ne. 0) rand2 = pattern_spp_mp(i,1,j)*2.
+            m = RSHIFT(ABS(spp_mp),2)
+            if (MOD(m,2) .ne. 0) rand3 = 0.33*(pattern_spp_mp(i,1,j)+ABS(minrand))
+!-GT        m = RSHIFT(ABS(spp_mp),3)
+!-GT        if (MOD(m,2) .ne. 0) rand4 = 0.25*pattern_spp_mp(i,1,j)
+         endif
+!+---+-----------------------------------------------------------------+
          pptrain = 0.
          pptsnow = 0.
          pptgraul = 0.
@@ -1185,6 +1228,7 @@
                       nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dz1d,  &
                       pptrain, pptsnow, pptgraul, pptice,               &
                       rainprod1d, evapprod1d,                           &
+                      rand1, rand2, rand3, rand4,                       &
                       kts, kte, dt, i, j)
 
          pcp_ra(i,j) = pptrain
@@ -1343,7 +1387,7 @@
 !        IF ( PRESENT (diagflag) ) THEN
 !        if (diagflag .and. do_radar_ref == 1) then
 !         call calc_refl10cm (qv1d, qc1d, qr1d, nr1d, qs1d, qg1d,       &
-!                     t1d, p1d, dBZ, kts, kte, i, j)
+!                     t1d, p1d, dBZ,kts, kte, i, j)
 !         do k = kts, kte
 !            refl_10cm(i,k,j) = MAX(-35., dBZ(k))
 !         enddo
@@ -1401,6 +1445,7 @@
                           nr1d, nc1d, nwfa1d, nifa1d, t1d, p1d, w1d, dzq, &
                           pptrain, pptsnow, pptgraul, pptice,             &
                           rainprod, evapprod,                             &
+                          rand1, rand2, rand3, rand4,                     &
                           kts, kte, dt, ii, jj)
 
       implicit none
@@ -1415,7 +1460,7 @@
       REAL, INTENT(IN):: dt
       REAL, DIMENSION(kts:kte), INTENT(INOUT):: &
                           rainprod, evapprod
-
+      REAL, INTENT(IN):: rand1, rand2, rand3, rand4
 !..Local variables
       REAL, DIMENSION(kts:kte):: tten, qvten, qcten, qiten, &
            qrten, qsten, qgten, niten, nrten, ncten, nwfaten, nifaten
@@ -1667,6 +1712,7 @@
 !.. set L_nwfa to true when the cloud liquid water number concentration is less than 2.:
             if(is_aerosol_aware .and. nc(k) .le. 2.) L_nwfa(k) = .true.
             nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
+            nu_c = MAX(2, MIN(nu_c+NINT(rand2), 15))
             lamc = (nc(k)*am_r*ccg(2,nu_c)*ocg1(nu_c)/rc(k))**obmr
             xDc = (bm_r + nu_c + 1.) / lamc
             if (xDc.lt. D0c) then
@@ -1921,7 +1967,7 @@
             xslw1 = 0.01
          endif
          ygra1 = 4.31 + alog10(max(5.E-5, rg(k)))
-         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1))
+         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1)) + rand1
          N0_exp = 10.**(zans1)
          N0_exp = MAX(DBLE(gonv_min), MIN(N0_exp, DBLE(gonv_max)))
          N0_min = MIN(N0_exp, N0_min)
@@ -1962,7 +2008,9 @@
 
          mvd_c(k) = D0c
          if (L_qc(k)) then
-          nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
+          nu_c = NINT(1000.E6/nc(k)) + 2 
+          !nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
+          nu_c = MAX(2, MIN(nu_c+NINT(rand2), 15)) ! spp_mp
           xDc = MAX(D0c*1.E6, ((rc(k)/(am_r*nc(k)))**obmr) * 1.E6)
           lamc = (nc(k)*am_r* ccg(2,nu_c) * ocg1(nu_c) / rc(k))**obmr
           mvd_c(k) = (3.0+nu_c+0.672) / lamc
@@ -2371,6 +2419,7 @@
                                 .and. temp(k).lt.253.15) ) then
            if (dustyIce .AND. is_aerosol_aware) then
             xnc = iceDeMott(tempc,qv(k),qvs(k),qvsi(k),rho(k),nifa(k))
+            xnc = xnc*(1.0 + 50.*rand3) ! spp_mp
            else
             xnc = MIN(250.E3, TNO*EXP(ATO*(T_0-temp(k))))
            endif
@@ -2709,7 +2758,9 @@
          xrc=MAX(R1, (qc1d(k) + qcten(k)*dtsave)*rho(k))
          xnc=MAX(2., (nc1d(k) + ncten(k)*dtsave)*rho(k))
          if (xrc .gt. R1) then
-          nu_c = MIN(15, NINT(1000.E6/xnc) + 2)
+          !nu_c = MIN(15, NINT(1000.E6/xnc) + 2)
+          nu_c = NINT(1000.E6/xnc) + 2   !spp_mp
+          nu_c = MAX(2, MIN(nu_c+NINT(rand2), 15)) !spp_mp
           lamc = (xnc*am_r*ccg(2,nu_c)*ocg1(nu_c)/rc(k))**obmr
           xDc = (bm_r + nu_c + 1.) / lamc
           if (xDc.lt. D0c) then
@@ -3001,7 +3052,7 @@
             xslw1 = 0.01
          endif
          ygra1 = 4.31 + alog10(max(5.E-5, rg(k)))
-         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1))
+         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1))+ rand1 !spp_mp
          N0_exp = 10.**(zans1)
          N0_exp = MAX(DBLE(gonv_min), MIN(N0_exp, DBLE(gonv_max)))
          N0_min = MIN(N0_exp, N0_min)
@@ -3049,7 +3100,8 @@
 !+---+-----------------------------------------------------------------+ !  DROPLET NUCLEATION
            if (clap .gt. eps) then
             if (is_aerosol_aware) then
-               xnc = MAX(2., activ_ncloud(temp(k), w1d(k), nwfa(k)))
+               !xnc = MAX(2., activ_ncloud(temp(k), w1d(k), nwfa(k)))
+               xnc = MAX(2., activ_ncloud(temp(k), w1d(k)+rand3, nwfa(k))) !spp_mp
             else
                xnc = Nt_c
             endif
@@ -3287,7 +3339,9 @@
       do k = ksed1(5), kts, -1
          vtc = 0.
          if (rc(k) .gt. R1 .and. w1d(k) .lt. 1.E-1) then
-          nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
+          !nu_c = MIN(15, NINT(1000.E6/nc(k)) + 2)
+          nu_c = NINT(1000.E6/nc(k)) + 2 !spp_mp
+          nu_c = MAX(2, MIN(nu_c+NINT(rand2), 15)) !spp_mp
           lamc = (nc(k)*am_r*ccg(2,nu_c)*ocg1(nu_c)/rc(k))**obmr
           ilamc = 1./lamc
           vtc = rhof(k)*av_c*ccg(5,nu_c)*ocg2(nu_c) * ilamc**bv_c
@@ -3588,7 +3642,9 @@
            qc1d(k) = 0.0
            nc1d(k) = 0.0
          else
-           nu_c = MIN(15, NINT(1000.E6/(nc1d(k)*rho(k))) + 2)
+           !nu_c = MIN(15, NINT(1000.E6/(nc1d(k)*rho(k))) + 2)
+           nu_c = NINT(1000.E6/(nc1d(k)*rho(k))) + 2                      !spp_mp
+           nu_c = MAX(2, MIN(nu_c+NINT(rand2), 15))                       ! spp_mp
            lamc = (am_r*ccg(2,nu_c)*ocg1(nu_c)*nc1d(k)/qc1d(k))**obmr
            xDc = (bm_r + nu_c + 1.) / lamc
            if (xDc.lt. D0c) then
@@ -4932,6 +4988,7 @@
                           qv1d, qc1d, qr1d, nr1d, qs1d, qg1d, t1d, p1d
       REAL, DIMENSION(kts:kte), INTENT(INOUT):: dBZ
 !     REAL, DIMENSION(kts:kte), INTENT(INOUT):: vt_dBZ
+!      REAL, INTENT(IN):: rand1 ! spp_mp
 
 !..Local variables
       REAL, DIMENSION(kts:kte):: temp, pres, qv, rho, rhof
@@ -5082,7 +5139,8 @@
             xslw1 = 0.01
          endif
          ygra1 = 4.31 + alog10(max(5.E-5, rg(k)))
-         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1))
+         zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1)) 
+         !zans1 = 3.1 + (100./(300.*xslw1*ygra1/(10./xslw1+1.+0.25*ygra1)+30.+10.*ygra1))+ rand1 !spp_mp
          N0_exp = 10.**(zans1)
          N0_exp = MAX(DBLE(gonv_min), MIN(N0_exp, DBLE(gonv_max)))
          N0_min = MIN(N0_exp, N0_min)

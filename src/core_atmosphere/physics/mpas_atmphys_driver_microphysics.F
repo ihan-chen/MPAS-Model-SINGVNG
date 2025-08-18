@@ -155,6 +155,8 @@
           if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+          ! array for stochastic physics
+          if(.not.allocated(pattern_spp_mp)) allocate(pattern_spp_mp(ims:ime,kms:kme,jms:jme))
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -236,6 +238,8 @@
           if(allocated(muc_p)) deallocate(muc_p)
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
+          ! array for stochastic physics
+          if(allocated(pattern_spp_mp)) deallocate(pattern_spp_mp)
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -344,6 +348,10 @@
  character(len=StrKIND):: errmsg
  integer:: errflg
 
+! stochastic physics related 
+ integer, pointer :: config_do_sppmp 
+ real :: minrand_val
+ real, pointer :: minrand_stddev_spp_mp,minrand_cutoff_spp_mp  
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('---enter subroutine driver_microphysics:')
@@ -364,7 +372,7 @@
  call precip_from_MPAS(configs,diag_physics,its,ite)
 
 !... initialization of soundings for non-hydrostatic dynamical cores.
- call microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,its,ite)
+ call microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,its,ite, itimestep)
 
 !... call to different cloud microphysics schemes:
  microp_select: select case(trim(microp_scheme))
@@ -385,6 +393,18 @@
        call mpas_timer_stop('mp_kessler')
 
     case ("mp_thompson")
+!------------------------
+    call mpas_pool_get_config(configs,'do_sppmp', config_do_sppmp)
+    if (config_do_sppmp .ne. 0) then
+     call mpas_pool_get_config(configs,'config_sppmp_gridpt_stddev', minrand_stddev_spp_mp)
+     call mpas_pool_get_config(configs,'config_sppmp_stddev_cutoff', minrand_cutoff_spp_mp)
+     minrand_val=minrand_cutoff_spp_mp*minrand_stddev_spp_mp
+     !print*,'Activate SPPMP in microphysics_driver: calling thompson, spp_mp minrand=',minrand_val
+    else
+     !print*, 'NO SPPMP activation'
+     minrand_val=0
+    end if      
+!------------------------
        call mpas_timer_start('mp_thompson')
        istep = 1
        do while (istep .le. n_microp)
@@ -402,7 +422,8 @@
                   ntc       = ntc_p       , muc        = muc_p                                    , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte           , &
+                  spp_mp = config_do_sppmp, pattern_spp_mp = pattern_spp_mp , minrand = minrand_val &
                            )
        istep = istep + 1
        enddo
@@ -428,7 +449,8 @@
                   muc       = muc_p       ,                                                         &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte           , &
+                  spp_mp = config_do_sppmp, pattern_spp_mp = pattern_spp_mp , minrand = minrand_val &
                            )
           istep = istep + 1
           enddo

@@ -546,7 +546,7 @@
  end subroutine MPAS_to_physics
 
 !=================================================================================================================
- subroutine microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,its,ite)
+ subroutine microphysics_from_MPAS(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,its,ite, itimestep)
 !=================================================================================================================
 
 !input variables:
@@ -558,7 +558,6 @@
 
  integer,intent(in):: its,ite
  integer:: time_lev
-
 !inout variables:
  type(mpas_pool_type),intent(inout):: tend_physics
 
@@ -577,13 +576,18 @@
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
-
+ real(kind=RKIND),dimension(:,:),pointer:: stoch_pat
+ integer, pointer:: spp_mp
+ integer,intent(in):: itimestep
 !local variables:
  integer:: i,k,j
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
+ 
+ call mpas_pool_get_config(configs,'do_sppmp', spp_mp)
+ call mpas_pool_get_array(tend_physics,'stoch_pattern', stoch_pat)
 
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
@@ -621,6 +625,20 @@
     z_p(i,k,j)    = zgrid(k,i)
     dz_p(i,k,j)   = zgrid(k+1,i) - zgrid(k,i)
     w_p(i,k,j)    = w(k,i)
+
+    if (spp_mp >= 1) then
+     if (itimestep > 10) then
+      !print*,'Given SPP_MP values in interface:', stoch_pat(k,i) 
+      pattern_spp_mp(i,k,j) = stoch_pat(k,i) ! read-in sppt pattern
+     else
+      !print*,'Skip SPPMP in interface due to values'
+      pattern_spp_mp(i,k,j) = 0._RKIND
+     end if
+    else
+     !print*,'disable spp_mp in interface'
+     pattern_spp_mp(i,k,j) = 0._RKIND
+    end if 
+
  enddo
  enddo
  enddo

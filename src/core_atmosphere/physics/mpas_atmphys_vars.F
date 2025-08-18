@@ -458,7 +458,8 @@
     rnwfablten_p       !tendency of water-friendly aerosol number concentration due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
+    pattern_spp_pbl, & !stochastic forcing for the MYMM PBL and surface layer schemes.
+    pattern_spp_mp     !stochastic forcing for the Thompson microphysics scheme
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
