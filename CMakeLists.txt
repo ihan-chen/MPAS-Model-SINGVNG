@@ -10,7 +10,7 @@ set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 include(GNUInstallDirs)
 
 # MPI flags
-+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DNOMPIMOD")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DNOMPIMOD")
 
 # Options
 set(MPAS_ALL_CORES atmosphere init_atmosphere)
